@@ -13,10 +13,10 @@ export const metadata: Metadata = {
   title: `Home - ${about.nickname}`,
   description: "Full Stack Developer specializing in modern web technologies",
   icons: {
-    icon: "/logo.svg",
-    shortcut: "/logo.svg",
-    apple: "/logo.svg", 
-  }
+    icon: "/favicon.ico",                // default pentru browsere
+    shortcut: "/favicon.ico",            // fallback
+    apple: "/apple-touch-icon.png",      // iOS home screen
+  },
 }
 
 export default function RootLayout({
