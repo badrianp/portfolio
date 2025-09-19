@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
+import { about } from "@/data/about";
 import { ProjectGrid } from "@/components/project-grid"
 import { projects } from "@/data/projects"
 
 export const metadata: Metadata = {
-  title: "Projects - Your Name",
+  title: `Projects - ${about.nickname}`,
   description: "A collection of my work including web applications, mobile apps, and open source contributions.",
 }
 

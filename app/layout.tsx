@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
+import { about } from "@/data/about"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
@@ -9,9 +10,13 @@ import { Suspense } from "react"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Your Name - Portfolio",
+  title: `Home - ${about.nickname}`,
   description: "Full Stack Developer specializing in modern web technologies",
-  generator: "v0.app",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg", 
+  }
 }
 
 export default function RootLayout({

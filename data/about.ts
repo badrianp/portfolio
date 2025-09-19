@@ -27,7 +27,7 @@ frontend development (React, Next.js, Tailwind) and academic projects
 spanning web, mobile (Flutter), and low-level networking (Python, C/C++). 
 I enjoy building clean UIs, experimenting with new technologies, 
 and connecting creativity with code.`,
-  'short-bio': "Full Stack Developer passionate about creating exceptional digital experiences using modern technologies and clean, efficient code.",
+  'short-bio': "Full Stack Developer passionate about creating digital experiences using modern technologies and clean, efficient code.",
   country: "Romania",
   city: "Miercurea Ciuc",
   email: "bleojua98@gmail.com",
