@@ -17,6 +17,12 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",            // fallback
     apple: "/apple-touch-icon.png",      // iOS home screen
   },
+  manifest: "/manifest.json", // dacă folosești PWA
+  other: {
+    // pentru iOS
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent", // sau "black-translucent"
+  },
 }
 
 export default function RootLayout({
