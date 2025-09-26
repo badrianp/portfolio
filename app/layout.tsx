@@ -5,7 +5,7 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Navbar } from "@/components/navbar"
-import ChatWidget from "@/components/chat/ChatWidget"
+// import ChatWidget from "@/components/chat/ChatWidget"
 import { Footer } from "@/components/footer"
 import { Suspense } from "react"
 import ThemeScript from "@/components/ThemeScript"
@@ -49,7 +49,7 @@ export default function RootLayout({
         <Suspense fallback={<div>Loading...</div>}>
           <Navbar />
           <main className="min-h-screen">{children}</main>
-          <ChatWidget />
+          {/* <ChatWidget /> */}
           <Footer />
         </Suspense>
         <Analytics />
