@@ -1,11 +1,6 @@
 {
-  "name": "Adrian Bleoju Portfolio",
-  "short_name": "Portfolio",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111",
+  "name": "App",
+  "short_name": "App",
   "icons": [
     {
       "src": "/icons/android-chrome-192x192.png",
@@ -25,5 +20,8 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "display": "standalone"
 }

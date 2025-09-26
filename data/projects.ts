@@ -217,7 +217,7 @@ export const projects: Project[] = [
       repo: "https://github.com/badrianp/ReT",
       live: "",
     },
-    cover: "covers/ret.png",
+    cover: "/covers/ret.png",
     featured: true,
     description: "Web app for aggregating RSS feeds with personalization and user authentication.",
     year: 2025
@@ -230,7 +230,7 @@ export const projects: Project[] = [
     stack: ["Java"],
     tags: ["cli", "game", "oop"],
     links: { repo: "https://github.com/badrianp/Backgammon" },
-    cover: "covers/backgammon.png",
+    cover: "/covers/backgammon.png",
     description: "Turn-based backgammon game implemented in Java using OOP principles.",
     year: 2021
   },
@@ -254,7 +254,7 @@ export const projects: Project[] = [
     stack: ["C"],
     tags: ["cli", "sockets", "client-server"],
     links: { repo: "https://github.com/badrianp/PheasantGame" },
-    cover: "covers/pheasant.png",
+    cover: "/covers/pheasant.png",
     description: "Networked game with client-server communication, built in C.",
     year: 2022
   },
