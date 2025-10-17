@@ -74,7 +74,7 @@ export default function ChatWidget() {
   return (
     <>
       {/* FAB + bubble (poți păstra versiunea ta curentă dacă ai deja) */}
-      <div className="fixed bottom-4 right-4 z-50 flex items-end gap-3">
+      <div className="fixed bottom-4 right-4 z-50 flex items-end flex-col gap-3">
         {!open && (
           <div className="relative select-none">
             <div className="rounded-full bg-black text-white text-xs px-3 py-2 shadow-lg animate-pulse">
