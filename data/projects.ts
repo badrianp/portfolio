@@ -33,7 +33,7 @@ export const projects: Project[] = [
     slug: "corporate-ui-dashboard-pro",
     title: "Corporate UI Dashboard PRO",
     type: "work",
-    role: "Ownership frontend: layout, components, styles",
+    role: "Frontend: layout, components, styles",
     scope: "full-frontend",
     stack: ["HTML", "Bootstrap5", "JavaScript"],
     tags: ["dashboard", "design-system", "pro"],
