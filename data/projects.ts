@@ -16,7 +16,9 @@ export type Project = {
   title: string;
   type: "work" | "faculty" | "personal";
   role: string;
-  scope?: "full-frontend" | "component-dev";
+  scope?: "full-frontend"
+      | "component-dev"
+      | "full-stack";
   stack: string[];
   tags?: string[];
   links: { live?: string; repo?: string };
@@ -33,7 +35,7 @@ export const projects: Project[] = [
     slug: "corporate-ui-dashboard-pro",
     title: "Corporate UI Dashboard PRO",
     type: "work",
-    role: "Ownership frontend: layout, components, styles",
+    role: "Frontend: layout, components, styles",
     scope: "full-frontend",
     stack: ["HTML", "Bootstrap5", "JavaScript"],
     tags: ["dashboard", "design-system", "pro"],
@@ -84,6 +86,7 @@ export const projects: Project[] = [
     slug: "new-life-therapy",
     title: "New Life Therapy — Psychology Practice",
     type: "work",
+    scope: "full-stack",
     role: "Presentation website built with Angular",
     stack: ["Angular", "TypeScript", "HTML", "CSS"],
     tags: ["website", "angular", "presentation"],
@@ -99,6 +102,7 @@ export const projects: Project[] = [
     slug: "arthera-wallet",
     title: "Arthera Wallet",
     type: "work",
+    scope: "full-frontend",
     role: "Crypto wallet UI built with Angular",
     stack: ["Angular", "TypeScript", "HTML", "CSS"],
     tags: ["wallet", "crypto", "angular"],
@@ -180,6 +184,7 @@ export const projects: Project[] = [
     slug: "forking-food",
     title: "Forking Food",
     type: "faculty",
+    scope: "full-stack",
     role: "End-to-end mobile app: Flutter + Firebase",
     stack: ["Flutter", "Dart", "Firebase", "Firestore"],
     tags: ["mobile", "flutter", "firebase", "swipe"],
@@ -196,6 +201,7 @@ export const projects: Project[] = [
     title: "TicTacToe (Flutter)",
     type: "faculty",
     role: "Implemented UI, game flow, and AI logic (PvP & PvE)",
+    scope: "full-stack",
     stack: ["Flutter", "Dart"],
     tags: ["game", "ai", "mobile", "flutter"],
     links: {
@@ -211,6 +217,7 @@ export const projects: Project[] = [
     title: "ReT – Resource Recommender Tool",
     type: "faculty",
     role: "Web app: Node.js MVC + MySQL + frontend",
+    scope: "full-stack",
     stack: ["Node.js", "MySQL", "HTML", "CSS", "JavaScript"],
     tags: ["rss", "mvc", "node"],
     links: { 
@@ -227,6 +234,7 @@ export const projects: Project[] = [
     title: "Backgammon (Java, CLI)",
     type: "faculty",
     role: "Console-based backgammon game with OOP structure",
+    scope: "full-stack",
     stack: ["Java"],
     tags: ["cli", "game", "oop"],
     links: { repo: "https://github.com/badrianp/Backgammon" },
@@ -239,6 +247,7 @@ export const projects: Project[] = [
     title: "Battleships (Python, CLI)",
     type: "faculty",
     role: "Console-based battleships game in a single file",
+    scope: "full-stack",
     stack: ["Python"],
     tags: ["cli", "game"],
     links: { repo: "https://github.com/badrianp/Battleships" },
@@ -251,6 +260,7 @@ export const projects: Project[] = [
     title: "Pheasant Game (C, Client–Server)",
     type: "faculty",
     role: "Text-based multiplayer game using sockets",
+    scope: "full-stack",
     stack: ["C"],
     tags: ["cli", "sockets", "client-server"],
     links: { repo: "https://github.com/badrianp/PheasantGame" },

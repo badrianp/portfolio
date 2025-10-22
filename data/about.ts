@@ -23,7 +23,7 @@ export const about: About = {
   avatar: "/avatar.jpg",
   tagline: "Frontend Developer • Passionate about AI & Creative Tech",
   bio: `I’m a Computer Science graduate from UAIC Iași with experience in 
-frontend development (React, Next.js, Tailwind) and academic projects 
+frontend development (Flutter, Next.js, Tailwind) and academic projects 
 spanning web, mobile (Flutter), and low-level networking (Python, C/C++). 
 I enjoy building clean UIs, experimenting with new technologies, 
 and connecting creativity with code.`,
