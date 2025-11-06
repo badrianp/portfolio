@@ -8,29 +8,37 @@ import { Send, X } from "lucide-react";
 
 type Msg = { role: "user" | "bot"; text: string };
 
-function LinkRenderer(props: React.ComponentProps<"a">) {
+function LinkRenderer(props: React.ComponentProps<"a"> & { onInternalLinkClick?: () => void }) {
   const href = props.href ?? "#";
   const isInternal = href.startsWith("/");
   const isMailto = href.startsWith("mailto:");
   const className = "underline underline-offset-2 hover:opacity-80";
+  const { onInternalLinkClick, ...linkProps } = props;
 
   if (isInternal) {
+    const handleClick = () => {
+      // On mobile, close chat when clicking internal links
+      if (typeof window !== "undefined" && window.innerWidth < 768 && onInternalLinkClick) {
+        onInternalLinkClick();
+      }
+    };
+
     return (
-      <NextLink href={href} className={className}>
-        {props.children}
+      <NextLink href={href} className={className} onClick={handleClick}>
+        {linkProps.children}
       </NextLink>
     );
   }
   if (isMailto) {
     return (
       <a href={href} className={className}>
-        {props.children}
+        {linkProps.children}
       </a>
     );
   }
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
-      {props.children}
+      {linkProps.children}
     </a>
   );
 }
@@ -370,6 +378,11 @@ export default function ChatWidget() {
       {open && (
         <div
           className="fixed z-50 inset-x-0 bottom-0 md:inset-auto md:bottom-24 md:right-4"
+          style={{
+            paddingBottom: typeof window !== "undefined" && window.innerWidth < 768 
+              ? "env(safe-area-inset-bottom)" 
+              : "0",
+          }}
           role="dialog"
           aria-label="Portfolio Assistant"
         >
@@ -383,7 +396,7 @@ export default function ChatWidget() {
                 maxHeight: `${viewportHeight}px`,
               }),
               ...(!viewportHeight && {
-                maxHeight: "100dvh",
+                maxHeight: "calc(100dvh - env(safe-area-inset-bottom))",
               }),
             }}
           >
@@ -413,7 +426,11 @@ export default function ChatWidget() {
                     }`}
                   >
                     <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words">
-                      <ReactMarkdown components={{ a: LinkRenderer }}>
+                      <ReactMarkdown 
+                        components={{ 
+                          a: (props) => <LinkRenderer {...props} onInternalLinkClick={() => setOpen(false)} />
+                        }}
+                      >
                         {m.text}
                       </ReactMarkdown>
                     </div>
