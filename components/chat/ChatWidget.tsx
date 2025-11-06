@@ -440,7 +440,7 @@ export default function ChatWidget() {
             </div>
 
             {/* input bar */}
-            <div className="border-t px-3 py-2 bg-background" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
+            <div className="border-t px-3 py-2 bg-background">
               <div className="flex gap-2">
                 <input
                   ref={inputRef}
