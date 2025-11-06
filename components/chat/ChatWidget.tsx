@@ -41,10 +41,13 @@ export default function ChatWidget() {
   const [msgs, setMsgs] = useState<Msg[]>([
     {
       role: "bot",
-      text: "Hi! Ask me about Adrian’s projects, stack, or contact.\n\nType `help` to see all commands.",
+      text: "Hi! Ask me about Adrian's projects, stack, or contact.\n\nType `help` to see all commands.",
     },
   ]);
   const boxRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
 
   useEffect(() => {
     boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" });
@@ -62,30 +65,80 @@ export default function ChatWidget() {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
+      setViewportHeight(null);
     };
   }, [open]);
 
+  // Handle Visual Viewport API for mobile keyboard
   useEffect(() => {
     if (!open) return;
+    
     const vv = (window as any).visualViewport as VisualViewport | undefined;
-    if (!vv) return;
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    
+    if (!vv || !isMobile) {
+      // Desktop or no Visual Viewport API: use CSS defaults
+      setViewportHeight(null);
+      return;
+    }
 
     const sheet = document.getElementById("chat-sheet");
-    const scroll = document.getElementById("chat-scroll");
-    if (!sheet || !scroll) return;
+    if (!sheet) return;
 
-    const onResize = () => {
-      const keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      sheet.style.transform = keyboard ? `translateY(-${keyboard}px)` : "translateY(0)";
-      scroll.scrollTop = scroll.scrollHeight;
+    const updateHeight = () => {
+      // Calculate the difference between window height and visual viewport height
+      // This indicates if the keyboard is open
+      const windowHeight = window.innerHeight;
+      const visualHeight = vv.height;
+      const visualOffsetTop = vv.offsetTop || 0;
+      
+      // Keyboard is likely open if visual viewport is significantly smaller
+      // or if there's a significant offset (iOS Safari behavior)
+      const keyboardHeight = windowHeight - visualHeight - visualOffsetTop;
+      const keyboardThreshold = 150; // pixels
+      
+      if (keyboardHeight > keyboardThreshold) {
+        // Keyboard is open: use the visual viewport height
+        // AND adjust position to account for viewport offset
+        setViewportHeight(visualHeight);
+        
+        // Adjust position: move chat up by the offset amount
+        // This ensures the chat stays within the visible viewport
+        const offsetY = visualOffsetTop;
+        (sheet as HTMLElement).style.transform = `translateY(-${offsetY}px)`;
+      } else {
+        // Keyboard is closed: reset to use CSS default (100dvh)
+        setViewportHeight(null);
+        (sheet as HTMLElement).style.transform = "translateY(0)";
+      }
+      
+      // Scroll to bottom after height change to ensure latest message is visible
+      requestAnimationFrame(() => {
+        boxRef.current?.scrollTo({ 
+          top: boxRef.current?.scrollHeight || 0, 
+          behavior: "smooth" 
+        });
+      });
     };
 
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
-    onResize();
+    // Initial height calculation
+    updateHeight();
+
+    // Listen to viewport changes (keyboard open/close, orientation change, etc.)
+    vv.addEventListener("resize", updateHeight);
+    vv.addEventListener("scroll", updateHeight);
+    
+    // Fallback for browsers that don't fire visual viewport events properly
+    window.addEventListener("resize", updateHeight);
+
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
+      vv.removeEventListener("resize", updateHeight);
+      vv.removeEventListener("scroll", updateHeight);
+      window.removeEventListener("resize", updateHeight);
+      setViewportHeight(null);
+      if (sheet) {
+        (sheet as HTMLElement).style.transform = "translateY(0)";
+      }
     };
   }, [open]);
 
@@ -158,30 +211,22 @@ export default function ChatWidget() {
       {/* Bottom sheet chat */}
       {open && (
         <div
-          className="
-            fixed z-50
-            inset-x-0 bottom-0               /* mobile: full-width bottom sheet */
-            md:inset-auto md:bottom-24 md:right-4 /* desktop: float bottom-right */
-          "
+          className="fixed z-50 inset-x-0 bottom-0 md:inset-auto md:bottom-24 md:right-4"
           role="dialog"
           aria-label="Portfolio Assistant"
         >
           <div
             id="chat-sheet"
-            className="
-              flex flex-col border bg-background text-foreground shadow-2xl
-              rounded-t-2xl md:rounded-xl
-              w-full md:w-[min(92vw,28rem)]
-              /* mobile height (sheet) vs desktop height (panel) */
-              h-[min(75dvh,34rem)] md:h-[min(70vh,34rem)]
-              /* center on mobile, stick right on desktop */
-              mx-auto md:mx-0 md:ml-auto
-              /* subtle slide-up animation on open */
-              transition-transform duration-300 will-change-transform
-            "
+            ref={sheetRef}
+            className="flex flex-col border bg-background text-foreground shadow-2xl rounded-t-2xl md:rounded-xl w-full md:w-[min(92vw,28rem)] mx-auto md:mx-0 md:ml-auto transition-all duration-200 ease-out h-[100dvh] md:h-[min(70vh,34rem)]"
             style={{
-              /* iOS safe-area + real viewport units */
-              maxHeight: "calc(100dvh - env(safe-area-inset-top) - 8px)",
+              ...(viewportHeight && {
+                height: `${viewportHeight}px`,
+                maxHeight: `${viewportHeight}px`,
+              }),
+              ...(!viewportHeight && {
+                maxHeight: "100dvh",
+              }),
             }}
           >
             {/* header */}
@@ -223,9 +268,19 @@ export default function ChatWidget() {
             <div className="border-t px-3 py-2 bg-background" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
               <div className="flex gap-2">
                 <input
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && send()}
+                  onFocus={() => {
+                    // Trigger height recalculation when input is focused (keyboard opens)
+                    setTimeout(() => {
+                      const vv = (window as any).visualViewport as VisualViewport | undefined;
+                      if (vv) {
+                        vv.dispatchEvent(new Event("resize"));
+                      }
+                    }, 100);
+                  }}
                   placeholder="Try: projects · featured · projects in Angular"
                   className="flex-1 rounded-md border bg-background px-3 py-2 text-base"
                 />
