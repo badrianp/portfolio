@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   ],
   // Pentru PWA pe iOS: permite conținutului să se extindă în safe area
   // Safe area insets vor funcționa corect doar cu viewport-fit=cover
-  viewportFit: "cover",
+  // viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
