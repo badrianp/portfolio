@@ -124,6 +124,57 @@ CRITICAL RULES:
    - Avoid repetition
    - When introducing yourself, mention that you're Chadi, a chatbot that helps users learn about Adrian's portfolio`;
 
+// Helper: gestionează erorile de la Groq și generează mesaje prietenoase
+function handleGroqError(errorText: string, statusCode: number): string {
+  // Loghează eroarea completă în consolă (server-side) - DOAR pentru debugging
+  console.error("[Groq API Error]", {
+    status: statusCode,
+    error: errorText,
+    timestamp: new Date().toISOString(),
+  });
+
+  try {
+    // Încearcă să parseze eroarea ca JSON
+    const errorData = JSON.parse(errorText);
+    const error = errorData?.error;
+
+    if (error?.type === "rate_limit_exceeded") {
+      // Rate limit exceeded - extrage timpul de așteptare din mesaj
+      const errorMessage = error?.message || "";
+      const retryAfterMatch = errorMessage.match(/try again in ([\d.]+)s/i);
+      if (retryAfterMatch && retryAfterMatch[1]) {
+        const seconds = Math.ceil(parseFloat(retryAfterMatch[1]));
+        return `Scuze, am atins limita de cereri. Vă rugăm să încercați din nou în ${seconds} ${seconds === 1 ? 'secundă' : 'secunde'}.`;
+      }
+      // Dacă nu găsim timpul, mesaj generic
+      return "Scuze, am atins limita de cereri. Vă rugăm să încercați din nou în câteva momente.";
+    }
+
+    if (error?.type === "invalid_request_error") {
+      // Invalid request - mesaj generic, detalii în consolă
+      return "Scuze, cererea nu este validă. Vă rugăm să încercați din nou.";
+    }
+
+    if (error?.type === "authentication_error") {
+      // Authentication error - mesaj generic, detalii în consolă
+      console.error("[Groq Auth Error] - Check API key configuration", error);
+      return "Scuze, am întâmpinat o problemă tehnă. Vă rugăm să încercați mai târziu.";
+    }
+
+    // Pentru orice alt tip de eroare - mesaj generic
+    // Detaliile tehnice rămân DOAR în consolă (deja loggate mai sus)
+    console.error("[Groq Unknown Error Type]", { type: error?.type, message: error?.message });
+    return "Scuze, am întâmpinat o problemă temporară. Vă rugăm să încercați din nou în câteva momente.";
+  } catch (parseError) {
+    // Dacă nu e JSON valid, loghează eroarea brută în consolă
+    console.error("[Groq Error Parse Failed]", { errorText, parseError });
+  }
+
+  // Fallback: mesaj generic pentru orice alt tip de eroare
+  // Eroarea completă este deja loggată în consolă mai sus
+  return "Scuze, am întâmpinat o problemă temporară. Vă rugăm să încercați din nou în câteva momente.";
+}
+
 export async function POST(req: Request) {
   try {
     const { message, history = [] } = (await req.json()) as ChatBody;
@@ -151,12 +202,35 @@ export async function POST(req: Request) {
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ reply: `Groq error: ${err}` }, { status: 500 });
+      const errorText = await res.text();
+      const friendlyMessage = handleGroqError(errorText, res.status);
+      return NextResponse.json({ reply: friendlyMessage }, { status: 200 }); // Status 200 pentru a nu face UI-ul să trateze ca eroare fatală
     }
 
     const data = await res.json();
-    let reply = data.choices?.[0]?.message?.content ?? "No response.";
+
+    // Verifică dacă răspunsul conține erori (chiar dacă status e 200)
+    if (data.error) {
+      console.error("[Groq API Error in Response]", {
+        error: data.error,
+        timestamp: new Date().toISOString(),
+      });
+      const friendlyMessage = handleGroqError(JSON.stringify(data), 200);
+      return NextResponse.json({ reply: friendlyMessage }, { status: 200 });
+    }
+
+    // Verifică dacă există răspuns valid
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("[Groq API Invalid Response]", {
+        data,
+        timestamp: new Date().toISOString(),
+      });
+      return NextResponse.json({ 
+        reply: "Scuze, am primit un răspuns neașteptat. Vă rugăm să încercați din nou." 
+      }, { status: 200 });
+    }
+
+    let reply = data.choices[0].message.content ?? "No response.";
 
     // post-procesare: URL-uri brute → link & titluri proiect → link intern
     reply = autolinkUrls(reply);
@@ -164,6 +238,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ reply });
   } catch (e: any) {
-    return NextResponse.json({ reply: `Server error: ${e.message}` }, { status: 500 });
+    // Loghează eroarea în consolă
+    console.error("[Server Error]", {
+      error: e.message,
+      stack: e.stack,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Mesaj prietenos pentru utilizator
+    const friendlyMessage = "Scuze, am întâmpinat o problemă neașteptată. Vă rugăm să încercați din nou.";
+    return NextResponse.json({ reply: friendlyMessage }, { status: 200 });
   }
 }
