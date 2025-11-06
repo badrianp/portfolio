@@ -92,11 +92,9 @@ export default function ChatWidget() {
         setViewportHeight(null);
       };
     } else {
-      // On desktop: just prevent overflow
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
+      // On desktop: don't block scroll - allow normal page scrolling
+      // No body style changes needed
       return () => {
-        document.body.style.overflow = prev;
         setViewportHeight(null);
       };
     }
@@ -119,35 +117,65 @@ export default function ChatWidget() {
     const container = sheet?.parentElement;
     if (!sheet || !container) return;
 
-    // Prevent scroll on container (prevents page scroll when dragging chat)
-    const preventTouchScroll = (e: TouchEvent) => {
-      // Only prevent if scrolling outside the chat scroll area
+    // More aggressive scroll prevention - prevent all scroll outside chat messages
+    const preventScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       const chatScroll = document.getElementById("chat-scroll");
-      if (chatScroll && chatScroll.contains(target)) {
-        return; // Allow scroll inside chat messages area
+      
+      // Only allow scroll inside the chat messages area
+      if (chatScroll && (chatScroll === target || chatScroll.contains(target))) {
+        // Check if we're at the boundaries
+        const isAtTop = chatScroll.scrollTop === 0;
+        const isAtBottom = chatScroll.scrollTop + chatScroll.clientHeight >= chatScroll.scrollHeight - 1;
+        
+        // Prevent scroll propagation if at boundaries
+        if ((isAtTop && (e as any).deltaY < 0) || (isAtBottom && (e as any).deltaY > 0)) {
+          e.stopPropagation();
+        }
+        return;
       }
+      
+      // Prevent all other scroll
       e.preventDefault();
+      e.stopPropagation();
     };
 
-    const preventWheelScroll = (e: WheelEvent) => {
-      // Only prevent if scrolling outside the chat scroll area
+    // Prevent scroll on multiple levels
+    const preventTouchStart = (e: TouchEvent) => {
       const target = e.target as HTMLElement;
       const chatScroll = document.getElementById("chat-scroll");
-      if (chatScroll && chatScroll.contains(target)) {
-        return; // Allow scroll inside chat messages area
+      if (chatScroll && (chatScroll === target || chatScroll.contains(target))) {
+        return; // Allow touch inside chat
       }
-      e.preventDefault();
+      // Prevent touch outside chat to prevent scroll
+      if (e.touches.length > 1) {
+        e.preventDefault(); // Prevent pinch zoom
+      }
     };
 
-    container.addEventListener("touchmove", preventTouchScroll, { passive: false });
-    container.addEventListener("wheel", preventWheelScroll, { passive: false });
+    // Add event listeners with capture phase for better control
+    document.addEventListener("touchmove", preventScroll, { passive: false, capture: true });
+    document.addEventListener("wheel", preventScroll, { passive: false, capture: true });
+    document.addEventListener("touchstart", preventTouchStart, { passive: false, capture: true });
+    container.addEventListener("touchmove", preventScroll, { passive: false });
+    container.addEventListener("wheel", preventScroll, { passive: false });
 
-    const updateHeight = () => {
-      // Calculate the difference between window height and visual viewport height
+    let lastHeight = vv.height;
+    let lastOffsetTop = vv.offsetTop || 0;
+    let updateTimeout: NodeJS.Timeout | null = null;
+
+    const updateHeight = (force = false) => {
       const windowHeight = window.innerHeight;
       const visualHeight = vv.height;
       const visualOffsetTop = vv.offsetTop || 0;
+      
+      // Only update if values actually changed (unless forced)
+      if (!force && visualHeight === lastHeight && visualOffsetTop === lastOffsetTop) {
+        return;
+      }
+      
+      lastHeight = visualHeight;
+      lastOffsetTop = visualOffsetTop;
       
       // Keyboard is likely open if visual viewport is significantly smaller
       const keyboardHeight = windowHeight - visualHeight - visualOffsetTop;
@@ -155,22 +183,24 @@ export default function ChatWidget() {
       
       if (keyboardHeight > keyboardThreshold) {
         // Keyboard is open: use the visual viewport height
-        // Position chat to fill the visible viewport from top to bottom
         setViewportHeight(visualHeight);
         
         // Position container at the top of the visual viewport
-        // The visual viewport starts at visualOffsetTop from the top of the window
         (container as HTMLElement).style.top = `${visualOffsetTop}px`;
         (container as HTMLElement).style.bottom = "auto";
         (container as HTMLElement).style.height = `${visualHeight}px`;
+        (container as HTMLElement).style.maxHeight = `${visualHeight}px`;
         (sheet as HTMLElement).style.transform = "";
+        (sheet as HTMLElement).style.height = "100%";
       } else {
         // Keyboard is closed: use full viewport height
         setViewportHeight(null);
         (container as HTMLElement).style.top = "0";
         (container as HTMLElement).style.bottom = "0";
         (container as HTMLElement).style.height = "";
+        (container as HTMLElement).style.maxHeight = "";
         (sheet as HTMLElement).style.transform = "";
+        (sheet as HTMLElement).style.height = "";
       }
       
       // Scroll chat messages to bottom after height change
@@ -181,29 +211,59 @@ export default function ChatWidget() {
       });
     };
 
-    // Initial height calculation with a small delay to ensure viewport is ready
-    const initTimeout = setTimeout(updateHeight, 100);
-    updateHeight();
+    // Polling fallback for when visual viewport events don't fire immediately
+    // Use a shorter interval to catch keyboard animations on iOS
+    const pollInterval = setInterval(() => {
+      updateHeight();
+    }, 50);
+
+    // Initial height calculation
+    updateHeight(true);
+    
+    // Also check after a short delay to catch keyboard opening
+    const initTimeout = setTimeout(() => updateHeight(true), 50);
+    const delayedTimeout = setTimeout(() => updateHeight(true), 200);
+    const veryDelayedTimeout = setTimeout(() => updateHeight(true), 500);
+
+    // Wrapper functions for event listeners
+    const handleResize = () => {
+      if (updateTimeout) clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(() => updateHeight(true), 10);
+    };
+    
+    const handleScroll = () => {
+      if (updateTimeout) clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(() => updateHeight(true), 10);
+    };
 
     // Listen to viewport changes
-    vv.addEventListener("resize", updateHeight);
-    vv.addEventListener("scroll", updateHeight);
+    vv.addEventListener("resize", handleResize);
+    vv.addEventListener("scroll", handleScroll);
     
     // Fallback for browsers that don't fire visual viewport events properly
-    window.addEventListener("resize", updateHeight);
+    window.addEventListener("resize", handleResize);
 
     return () => {
+      clearInterval(pollInterval);
       clearTimeout(initTimeout);
-      vv.removeEventListener("resize", updateHeight);
-      vv.removeEventListener("scroll", updateHeight);
-      window.removeEventListener("resize", updateHeight);
-      container.removeEventListener("touchmove", preventTouchScroll);
-      container.removeEventListener("wheel", preventWheelScroll);
+      clearTimeout(delayedTimeout);
+      clearTimeout(veryDelayedTimeout);
+      if (updateTimeout) clearTimeout(updateTimeout);
+      vv.removeEventListener("resize", handleResize);
+      vv.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleResize);
+      document.removeEventListener("touchmove", preventScroll, { capture: true } as any);
+      document.removeEventListener("wheel", preventScroll, { capture: true } as any);
+      document.removeEventListener("touchstart", preventTouchStart, { capture: true } as any);
+      container.removeEventListener("touchmove", preventScroll);
+      container.removeEventListener("wheel", preventScroll);
       setViewportHeight(null);
       (sheet as HTMLElement).style.transform = "";
+      (sheet as HTMLElement).style.height = "";
       (container as HTMLElement).style.top = "";
       (container as HTMLElement).style.bottom = "";
       (container as HTMLElement).style.height = "";
+      (container as HTMLElement).style.maxHeight = "";
     };
   }, [open]);
 
@@ -339,12 +399,25 @@ export default function ChatWidget() {
                   onKeyDown={(e) => e.key === "Enter" && send()}
                   onFocus={() => {
                     // Trigger height recalculation when input is focused (keyboard opens)
+                    // Use multiple timeouts to catch keyboard animation
                     setTimeout(() => {
                       const vv = (window as any).visualViewport as VisualViewport | undefined;
                       if (vv) {
                         vv.dispatchEvent(new Event("resize"));
                       }
-                    }, 100);
+                    }, 50);
+                    setTimeout(() => {
+                      const vv = (window as any).visualViewport as VisualViewport | undefined;
+                      if (vv) {
+                        vv.dispatchEvent(new Event("resize"));
+                      }
+                    }, 200);
+                    setTimeout(() => {
+                      const vv = (window as any).visualViewport as VisualViewport | undefined;
+                      if (vv) {
+                        vv.dispatchEvent(new Event("resize"));
+                      }
+                    }, 500);
                   }}
                   placeholder="Try: projects · featured · projects in Angular"
                   className="flex-1 rounded-md border bg-background px-3 py-2 text-base"
