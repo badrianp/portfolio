@@ -48,9 +48,60 @@ export default function ChatWidget() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const shouldScrollToBottomRef = useRef(true); // Track if we should auto-scroll
 
+  // Helper to check if user is at bottom of chat
+  const isAtBottom = (threshold = 50) => {
+    if (!boxRef.current) return false;
+    const { scrollTop, scrollHeight, clientHeight } = boxRef.current;
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  };
+
+  // Helper to scroll to bottom
+  const scrollToBottom = (smooth = false) => {
+    if (!boxRef.current) return;
+    if (smooth) {
+      boxRef.current.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" });
+    } else {
+      boxRef.current.scrollTop = boxRef.current.scrollHeight;
+    }
+  };
+
+  // Reset scroll behavior when chat opens
   useEffect(() => {
-    boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" });
+    if (open) {
+      shouldScrollToBottomRef.current = true; // Start with auto-scroll enabled
+    }
+  }, [open]);
+
+  // Track user scroll to determine if we should auto-scroll
+  useEffect(() => {
+    if (!open || !boxRef.current) return;
+    
+    const handleScroll = () => {
+      // If user scrolls up, disable auto-scroll
+      // If user scrolls to bottom, enable auto-scroll
+      shouldScrollToBottomRef.current = isAtBottom(50);
+    };
+
+    const scrollContainer = boxRef.current;
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+    
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll);
+    };
+  }, [open]);
+
+  // Scroll to bottom when new message is added - ALWAYS (standard chat behavior)
+  useEffect(() => {
+    if (!open || msgs.length <= 1) return; // Skip initial message
+    
+    // Always scroll to bottom when new message arrives (standard chat UX)
+    requestAnimationFrame(() => {
+      scrollToBottom(true);
+      // Update ref to reflect that we're now at bottom
+      shouldScrollToBottomRef.current = true;
+    });
   }, [msgs, open]);
 
   useEffect(() => {
@@ -75,7 +126,7 @@ export default function ChatWidget() {
       const scrollY = window.scrollY;
       
       // Lock body scroll on mobile
-      document.body.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
       document.body.style.position = "fixed";
       document.body.style.top = `-${scrollY}px`;
       document.body.style.width = "100%";
@@ -94,13 +145,13 @@ export default function ChatWidget() {
     } else {
       // On desktop: don't block scroll - allow normal page scrolling
       // No body style changes needed
-      return () => {
+    return () => {
         setViewportHeight(null);
-      };
+    };
     }
   }, [open]);
 
-  // Handle Visual Viewport API for mobile keyboard - simplified approach
+  // Handle Visual Viewport API for mobile keyboard
   useEffect(() => {
     if (!open) return;
     
@@ -117,27 +168,44 @@ export default function ChatWidget() {
     const container = sheet?.parentElement;
     if (!sheet || !container) return;
 
+    // State tracking
     let isKeyboardOpen = false;
+    let lastVisualHeight = vv.height;
+    let lastVisualOffsetTop = vv.offsetTop || 0;
     let updateTimeout: NodeJS.Timeout | null = null;
+    let rafId: number | null = null;
+    let pendingScroll = false; // Track if we have a pending scroll operation
 
     const updateHeight = () => {
       const windowHeight = window.innerHeight;
       const visualHeight = vv.height;
       const visualOffsetTop = vv.offsetTop || 0;
       
-      // Detect keyboard: if visual viewport is significantly smaller than window
-      // Use a more lenient threshold to catch keyboard earlier
+      // Detect keyboard: viewport is significantly smaller OR has offset (iOS Safari)
       const viewportDiff = windowHeight - visualHeight;
-      const keyboardThreshold = 100; // pixels - lower threshold for earlier detection
-      
+      const keyboardThreshold = 100; // pixels
       const keyboardIsOpen = viewportDiff > keyboardThreshold || visualOffsetTop > 0;
       
+      // Check if dimensions actually changed (avoid unnecessary updates)
+      const heightChanged = Math.abs(visualHeight - lastVisualHeight) > 2;
+      const offsetChanged = Math.abs(visualOffsetTop - lastVisualOffsetTop) > 2;
+      const needsUpdate = heightChanged || offsetChanged;
+      
+      // IMPORTANT: Check scroll position BEFORE updating dimensions
+      // This ensures we capture the correct state before layout changes
+      const wasAtBottom = boxRef.current ? isAtBottom(50) : false;
+      const shouldMaintainBottom = wasAtBottom && shouldScrollToBottomRef.current;
+      
       if (keyboardIsOpen && !isKeyboardOpen) {
-        // Keyboard just opened
+        // Keyboard just opened - resize container
         isKeyboardOpen = true;
-        setViewportHeight(visualHeight);
         
-        // Position container to fill the visible viewport
+        // Update dimensions
+        setViewportHeight(visualHeight);
+        lastVisualHeight = visualHeight;
+        lastVisualOffsetTop = visualOffsetTop;
+        
+        // Position container to fill visible viewport
         (container as HTMLElement).style.position = "fixed";
         (container as HTMLElement).style.top = `${visualOffsetTop}px`;
         (container as HTMLElement).style.left = "0";
@@ -147,10 +215,21 @@ export default function ChatWidget() {
         (container as HTMLElement).style.maxHeight = `${visualHeight}px`;
         (sheet as HTMLElement).style.height = "100%";
         (sheet as HTMLElement).style.maxHeight = "100%";
+        
+        // DON'T scroll - let the browser handle scroll position naturally
+        // When dimensions change, the browser automatically maintains relative scroll position
+        // If user was at bottom, they'll stay at bottom naturally
+        // If user was scrolled up, they'll stay at that relative position
+        pendingScroll = false;
+        
       } else if (!keyboardIsOpen && isKeyboardOpen) {
         // Keyboard just closed
         isKeyboardOpen = false;
+        pendingScroll = false; // Cancel any pending scroll
+        
         setViewportHeight(null);
+        lastVisualHeight = vv.height;
+        lastVisualOffsetTop = 0;
         
         // Reset to default positioning
         (container as HTMLElement).style.position = "";
@@ -162,26 +241,29 @@ export default function ChatWidget() {
         (container as HTMLElement).style.maxHeight = "";
         (sheet as HTMLElement).style.height = "";
         (sheet as HTMLElement).style.maxHeight = "";
-      } else if (keyboardIsOpen) {
-        // Keyboard is open, update position if viewport changed
+        
+        // Don't scroll when keyboard closes - preserve user's position
+        
+      } else if (keyboardIsOpen && needsUpdate) {
+        // Keyboard is open and dimensions changed (during animation)
+        // Just update dimensions - browser will handle scroll position naturally
         setViewportHeight(visualHeight);
         (container as HTMLElement).style.top = `${visualOffsetTop}px`;
         (container as HTMLElement).style.height = `${visualHeight}px`;
         (container as HTMLElement).style.maxHeight = `${visualHeight}px`;
+        lastVisualHeight = visualHeight;
+        lastVisualOffsetTop = visualOffsetTop;
+        
+        // DON'T scroll - let browser maintain relative scroll position naturally
+        // The browser automatically preserves scroll position when container size changes
+        pendingScroll = false;
       }
-      
-      // Scroll chat messages to bottom after height change
-      requestAnimationFrame(() => {
-        if (boxRef.current) {
-          boxRef.current.scrollTop = boxRef.current.scrollHeight;
-        }
-      });
     };
 
-    // Debounced update function
+    // Debounced update function (throttle to ~60fps)
     const scheduleUpdate = () => {
       if (updateTimeout) clearTimeout(updateTimeout);
-      updateTimeout = setTimeout(updateHeight, 16); // ~60fps
+      updateTimeout = setTimeout(updateHeight, 16);
     };
 
     // Initial check
@@ -194,12 +276,14 @@ export default function ChatWidget() {
     // Fallback: listen to window resize
     window.addEventListener("resize", scheduleUpdate);
     
-    // Polling as ultimate fallback (check every 100ms)
-    const pollInterval = setInterval(updateHeight, 100);
+    // Polling as ultimate fallback (check every 200ms)
+    const pollInterval = setInterval(updateHeight, 200);
 
     return () => {
       clearInterval(pollInterval);
       if (updateTimeout) clearTimeout(updateTimeout);
+      if (rafId) cancelAnimationFrame(rafId);
+      pendingScroll = false; // Cancel any pending scroll
       vv.removeEventListener("resize", scheduleUpdate);
       vv.removeEventListener("scroll", scheduleUpdate);
       window.removeEventListener("resize", scheduleUpdate);
@@ -347,31 +431,33 @@ export default function ChatWidget() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && send()}
                   onFocus={() => {
-                    // Force height recalculation when input is focused
-                    // The visual viewport will change when keyboard opens
-                    // Trigger multiple checks to catch the animation
-                    [50, 150, 300, 500].forEach((delay) => {
-                      setTimeout(() => {
-                        const vv = (window as any).visualViewport as VisualViewport | undefined;
-                        if (vv) {
-                          // Dispatch resize event to trigger our handler
-                          vv.dispatchEvent(new Event("resize"));
-                        }
-                        // Also trigger window resize as fallback
-                        window.dispatchEvent(new Event("resize"));
-                      }, delay);
+                    // When input is focused, keyboard will open
+                    // Trigger viewport checks at multiple intervals to catch animation
+                    // The visual viewport events should handle this, but we ensure it works
+                    const checkViewport = () => {
+                      const vv = (window as any).visualViewport as VisualViewport | undefined;
+                      if (vv) {
+                        vv.dispatchEvent(new Event("resize"));
+                      }
+                      window.dispatchEvent(new Event("resize"));
+                    };
+                    
+                    // Check immediately and at intervals to catch keyboard animation
+                    checkViewport();
+                    [100, 250, 400, 600].forEach((delay) => {
+                      setTimeout(checkViewport, delay);
                     });
                   }}
                   onBlur={() => {
                     // When input loses focus, keyboard might close
-                    // Check after a delay to allow keyboard animation
+                    // Check after delay to allow keyboard animation to complete
                     setTimeout(() => {
                       const vv = (window as any).visualViewport as VisualViewport | undefined;
                       if (vv) {
                         vv.dispatchEvent(new Event("resize"));
                       }
                       window.dispatchEvent(new Event("resize"));
-                    }, 300);
+                    }, 200);
                   }}
                   placeholder="Try: projects · featured · projects in Angular"
                   className="flex-1 rounded-md border bg-background px-3 py-2 text-base"
