@@ -17,6 +17,9 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#111111" },
     { media: "(prefers-color-scheme: dark)",  color: "#111111" },
   ],
+  // Pentru PWA pe iOS: permite conținutului să se extindă în safe area
+  // Safe area insets vor funcționa corect doar cu viewport-fit=cover
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
