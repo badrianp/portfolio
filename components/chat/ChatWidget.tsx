@@ -100,7 +100,7 @@ export default function ChatWidget() {
     }
   }, [open]);
 
-  // Handle Visual Viewport API for mobile keyboard
+  // Handle Visual Viewport API for mobile keyboard - simplified approach
   useEffect(() => {
     if (!open) return;
     
@@ -117,90 +117,57 @@ export default function ChatWidget() {
     const container = sheet?.parentElement;
     if (!sheet || !container) return;
 
-    // More aggressive scroll prevention - prevent all scroll outside chat messages
-    const preventScroll = (e: Event) => {
-      const target = e.target as HTMLElement;
-      const chatScroll = document.getElementById("chat-scroll");
-      
-      // Only allow scroll inside the chat messages area
-      if (chatScroll && (chatScroll === target || chatScroll.contains(target))) {
-        // Check if we're at the boundaries
-        const isAtTop = chatScroll.scrollTop === 0;
-        const isAtBottom = chatScroll.scrollTop + chatScroll.clientHeight >= chatScroll.scrollHeight - 1;
-        
-        // Prevent scroll propagation if at boundaries
-        if ((isAtTop && (e as any).deltaY < 0) || (isAtBottom && (e as any).deltaY > 0)) {
-          e.stopPropagation();
-        }
-        return;
-      }
-      
-      // Prevent all other scroll
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    // Prevent scroll on multiple levels
-    const preventTouchStart = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
-      const chatScroll = document.getElementById("chat-scroll");
-      if (chatScroll && (chatScroll === target || chatScroll.contains(target))) {
-        return; // Allow touch inside chat
-      }
-      // Prevent touch outside chat to prevent scroll
-      if (e.touches.length > 1) {
-        e.preventDefault(); // Prevent pinch zoom
-      }
-    };
-
-    // Add event listeners with capture phase for better control
-    document.addEventListener("touchmove", preventScroll, { passive: false, capture: true });
-    document.addEventListener("wheel", preventScroll, { passive: false, capture: true });
-    document.addEventListener("touchstart", preventTouchStart, { passive: false, capture: true });
-    container.addEventListener("touchmove", preventScroll, { passive: false });
-    container.addEventListener("wheel", preventScroll, { passive: false });
-
-    let lastHeight = vv.height;
-    let lastOffsetTop = vv.offsetTop || 0;
+    let isKeyboardOpen = false;
     let updateTimeout: NodeJS.Timeout | null = null;
 
-    const updateHeight = (force = false) => {
+    const updateHeight = () => {
       const windowHeight = window.innerHeight;
       const visualHeight = vv.height;
       const visualOffsetTop = vv.offsetTop || 0;
       
-      // Only update if values actually changed (unless forced)
-      if (!force && visualHeight === lastHeight && visualOffsetTop === lastOffsetTop) {
-        return;
-      }
+      // Detect keyboard: if visual viewport is significantly smaller than window
+      // Use a more lenient threshold to catch keyboard earlier
+      const viewportDiff = windowHeight - visualHeight;
+      const keyboardThreshold = 100; // pixels - lower threshold for earlier detection
       
-      lastHeight = visualHeight;
-      lastOffsetTop = visualOffsetTop;
+      const keyboardIsOpen = viewportDiff > keyboardThreshold || visualOffsetTop > 0;
       
-      // Keyboard is likely open if visual viewport is significantly smaller
-      const keyboardHeight = windowHeight - visualHeight - visualOffsetTop;
-      const keyboardThreshold = 150; // pixels
-      
-      if (keyboardHeight > keyboardThreshold) {
-        // Keyboard is open: use the visual viewport height
+      if (keyboardIsOpen && !isKeyboardOpen) {
+        // Keyboard just opened
+        isKeyboardOpen = true;
         setViewportHeight(visualHeight);
         
-        // Position container at the top of the visual viewport
+        // Position container to fill the visible viewport
+        (container as HTMLElement).style.position = "fixed";
         (container as HTMLElement).style.top = `${visualOffsetTop}px`;
+        (container as HTMLElement).style.left = "0";
+        (container as HTMLElement).style.right = "0";
         (container as HTMLElement).style.bottom = "auto";
         (container as HTMLElement).style.height = `${visualHeight}px`;
         (container as HTMLElement).style.maxHeight = `${visualHeight}px`;
-        (sheet as HTMLElement).style.transform = "";
         (sheet as HTMLElement).style.height = "100%";
-      } else {
-        // Keyboard is closed: use full viewport height
+        (sheet as HTMLElement).style.maxHeight = "100%";
+      } else if (!keyboardIsOpen && isKeyboardOpen) {
+        // Keyboard just closed
+        isKeyboardOpen = false;
         setViewportHeight(null);
-        (container as HTMLElement).style.top = "0";
-        (container as HTMLElement).style.bottom = "0";
+        
+        // Reset to default positioning
+        (container as HTMLElement).style.position = "";
+        (container as HTMLElement).style.top = "";
+        (container as HTMLElement).style.left = "";
+        (container as HTMLElement).style.right = "";
+        (container as HTMLElement).style.bottom = "";
         (container as HTMLElement).style.height = "";
         (container as HTMLElement).style.maxHeight = "";
-        (sheet as HTMLElement).style.transform = "";
         (sheet as HTMLElement).style.height = "";
+        (sheet as HTMLElement).style.maxHeight = "";
+      } else if (keyboardIsOpen) {
+        // Keyboard is open, update position if viewport changed
+        setViewportHeight(visualHeight);
+        (container as HTMLElement).style.top = `${visualOffsetTop}px`;
+        (container as HTMLElement).style.height = `${visualHeight}px`;
+        (container as HTMLElement).style.maxHeight = `${visualHeight}px`;
       }
       
       // Scroll chat messages to bottom after height change
@@ -211,59 +178,41 @@ export default function ChatWidget() {
       });
     };
 
-    // Polling fallback for when visual viewport events don't fire immediately
-    // Use a shorter interval to catch keyboard animations on iOS
-    const pollInterval = setInterval(() => {
-      updateHeight();
-    }, 50);
-
-    // Initial height calculation
-    updateHeight(true);
-    
-    // Also check after a short delay to catch keyboard opening
-    const initTimeout = setTimeout(() => updateHeight(true), 50);
-    const delayedTimeout = setTimeout(() => updateHeight(true), 200);
-    const veryDelayedTimeout = setTimeout(() => updateHeight(true), 500);
-
-    // Wrapper functions for event listeners
-    const handleResize = () => {
+    // Debounced update function
+    const scheduleUpdate = () => {
       if (updateTimeout) clearTimeout(updateTimeout);
-      updateTimeout = setTimeout(() => updateHeight(true), 10);
-    };
-    
-    const handleScroll = () => {
-      if (updateTimeout) clearTimeout(updateTimeout);
-      updateTimeout = setTimeout(() => updateHeight(true), 10);
+      updateTimeout = setTimeout(updateHeight, 16); // ~60fps
     };
 
-    // Listen to viewport changes
-    vv.addEventListener("resize", handleResize);
-    vv.addEventListener("scroll", handleScroll);
+    // Initial check
+    updateHeight();
     
-    // Fallback for browsers that don't fire visual viewport events properly
-    window.addEventListener("resize", handleResize);
+    // Listen to visual viewport changes (primary method)
+    vv.addEventListener("resize", scheduleUpdate);
+    vv.addEventListener("scroll", scheduleUpdate);
+    
+    // Fallback: listen to window resize
+    window.addEventListener("resize", scheduleUpdate);
+    
+    // Polling as ultimate fallback (check every 100ms)
+    const pollInterval = setInterval(updateHeight, 100);
 
     return () => {
       clearInterval(pollInterval);
-      clearTimeout(initTimeout);
-      clearTimeout(delayedTimeout);
-      clearTimeout(veryDelayedTimeout);
       if (updateTimeout) clearTimeout(updateTimeout);
-      vv.removeEventListener("resize", handleResize);
-      vv.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
-      document.removeEventListener("touchmove", preventScroll, { capture: true } as any);
-      document.removeEventListener("wheel", preventScroll, { capture: true } as any);
-      document.removeEventListener("touchstart", preventTouchStart, { capture: true } as any);
-      container.removeEventListener("touchmove", preventScroll);
-      container.removeEventListener("wheel", preventScroll);
+      vv.removeEventListener("resize", scheduleUpdate);
+      vv.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
       setViewportHeight(null);
-      (sheet as HTMLElement).style.transform = "";
-      (sheet as HTMLElement).style.height = "";
+      (container as HTMLElement).style.position = "";
       (container as HTMLElement).style.top = "";
+      (container as HTMLElement).style.left = "";
+      (container as HTMLElement).style.right = "";
       (container as HTMLElement).style.bottom = "";
       (container as HTMLElement).style.height = "";
       (container as HTMLElement).style.maxHeight = "";
+      (sheet as HTMLElement).style.height = "";
+      (sheet as HTMLElement).style.maxHeight = "";
     };
   }, [open]);
 
@@ -398,26 +347,31 @@ export default function ChatWidget() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && send()}
                   onFocus={() => {
-                    // Trigger height recalculation when input is focused (keyboard opens)
-                    // Use multiple timeouts to catch keyboard animation
+                    // Force height recalculation when input is focused
+                    // The visual viewport will change when keyboard opens
+                    // Trigger multiple checks to catch the animation
+                    [50, 150, 300, 500].forEach((delay) => {
+                      setTimeout(() => {
+                        const vv = (window as any).visualViewport as VisualViewport | undefined;
+                        if (vv) {
+                          // Dispatch resize event to trigger our handler
+                          vv.dispatchEvent(new Event("resize"));
+                        }
+                        // Also trigger window resize as fallback
+                        window.dispatchEvent(new Event("resize"));
+                      }, delay);
+                    });
+                  }}
+                  onBlur={() => {
+                    // When input loses focus, keyboard might close
+                    // Check after a delay to allow keyboard animation
                     setTimeout(() => {
                       const vv = (window as any).visualViewport as VisualViewport | undefined;
                       if (vv) {
                         vv.dispatchEvent(new Event("resize"));
                       }
-                    }, 50);
-                    setTimeout(() => {
-                      const vv = (window as any).visualViewport as VisualViewport | undefined;
-                      if (vv) {
-                        vv.dispatchEvent(new Event("resize"));
-                      }
-                    }, 200);
-                    setTimeout(() => {
-                      const vv = (window as any).visualViewport as VisualViewport | undefined;
-                      if (vv) {
-                        vv.dispatchEvent(new Event("resize"));
-                      }
-                    }, 500);
+                      window.dispatchEvent(new Event("resize"));
+                    }, 300);
                   }}
                   placeholder="Try: projects · featured · projects in Angular"
                   className="flex-1 rounded-md border bg-background px-3 py-2 text-base"
