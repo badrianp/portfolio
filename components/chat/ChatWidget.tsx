@@ -384,7 +384,7 @@ export default function ChatWidget() {
               : "0",
           }}
           role="dialog"
-          aria-label="Portfolio Assistant"
+          aria-label="Chadi - Portfolio Chatbot"
         >
           <div
             id="chat-sheet"
@@ -402,7 +402,7 @@ export default function ChatWidget() {
           >
             {/* header */}
             <div className="flex items-center justify-between border-b px-4 py-3">
-              <div className="font-medium">Portfolio Assistant</div>
+              <div className="font-medium">Chadi</div>
               <button onClick={() => setOpen(false)} aria-label="Close" className="rounded-md p-1 hover:bg-muted">
                 <X className="h-5 w-5" />
               </button>
