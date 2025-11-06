@@ -378,11 +378,6 @@ export default function ChatWidget() {
       {open && (
         <div
           className="fixed z-50 inset-x-0 bottom-0 md:inset-auto md:bottom-24 md:right-4"
-          style={{
-            paddingBottom: typeof window !== "undefined" && window.innerWidth < 768 
-              ? "env(safe-area-inset-bottom)" 
-              : "0",
-          }}
           role="dialog"
           aria-label="Chadi - Portfolio Chatbot"
         >
@@ -390,15 +385,6 @@ export default function ChatWidget() {
             id="chat-sheet"
             ref={sheetRef}
             className="flex flex-col border bg-background text-foreground shadow-2xl rounded-t-2xl md:rounded-xl w-full md:w-[min(92vw,28rem)] mx-auto md:mx-0 md:ml-auto transition-all duration-200 ease-out h-[100dvh] md:h-[min(70vh,34rem)]"
-            style={{
-              ...(viewportHeight && {
-                height: `${viewportHeight}px`,
-                maxHeight: `${viewportHeight}px`,
-              }),
-              ...(!viewportHeight && {
-                maxHeight: "calc(100dvh - env(safe-area-inset-bottom))",
-              }),
-            }}
           >
             {/* header */}
             <div className="flex items-center justify-between border-b px-4 py-3">
@@ -412,11 +398,11 @@ export default function ChatWidget() {
             <div
               id="chat-scroll"
               ref={boxRef}
-              className="flex-1 overflow-y-auto p-4 space-y-3"
-              style={{
-                maxHeight: "calc(100% - 48px - 56px - env(safe-area-inset-bottom))",
-                overscrollBehavior: "contain",
-              }}
+              className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3"
+              // style={{
+              //   maxHeight: "calc(100% - 48px - 56px - env(safe-area-inset-bottom))",
+              //   overscrollBehavior: "contain",
+              // }}
             >
               {msgs.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -440,7 +426,7 @@ export default function ChatWidget() {
             </div>
 
             {/* input bar */}
-            <div className="border-t px-3 py-2 bg-background" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+            <div className="border-t px-3 py-2 bg-background" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
               <div className="flex gap-2">
                 <input
                   ref={inputRef}
