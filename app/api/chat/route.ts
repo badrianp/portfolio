@@ -94,7 +94,7 @@ function skillsSummary() {
 
 function aboutBlurb() {
   const name = (about as any).name ?? "Adrian-Petru Bleoju";
-  return `**${name}** — software engineer focused on dashboards/UI systems (Tailwind, Bootstrap), plus Angular & Flutter. Clean UIs, reusable components, small touches of AI in UX.`;
+  return `**${name}** — software engineed with experience in frontend (Next.js, React, Angular, Tailwind, Flutter) and backend (Node.js, MySQL, Firebase). Focuses on clean UIs, reusable components, and building complete solutions from UI to data layer.`;
 }
 
 const HELP = `**Commands**
@@ -103,13 +103,13 @@ const HELP = `**Commands**
 - \`contact\`
 - \`projects\`
 - \`featured\`
-- \`projects in <tech>\`   e.g. \`projects in Angular\`
-- \`project <slug>\`       e.g. \`project argon-dashboard-pro-tailwind\`
+- \`projects in <tech>\`   e.g. \`projects in Flutter\`
+- \`project <slug>\`       e.g. \`project forking-food\`
 - \`skills\` / \`stack\`
 `;
 
 // ── router strict pe comenzi ──────────────────────────────────────────────────
-function routeIntent(input: string): string {
+export function routeIntent(input: string): string {
   const m = norm(input);
 
   if (!m || equalsAny(m, ["help", "commands"])) return HELP;
