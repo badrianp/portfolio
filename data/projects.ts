@@ -63,7 +63,7 @@ export const projects: Project[] = [
     cover: "/covers/argon-pro.png",
     featured: true,
     description: "Professional dashboard template with refined Argon UI components and extra pages.",
-    year: 2021
+    year: 2022
   },
   {
     slug: "soft-ui-dashboard-pro-tailwind",
@@ -96,7 +96,7 @@ export const projects: Project[] = [
     },
     cover: "/covers/new-life.png",
     description: "Single-page presentation website for a psychology practice, built with Angular.",
-    year: 2024
+    year: 2023
   },
   {
     slug: "arthera-wallet",
@@ -112,7 +112,7 @@ export const projects: Project[] = [
     },
     cover: "/covers/arthera.png",
     description: "Frontend for a crypto wallet, implementing UI flows and interactions with Angular.",
-    year: 2024
+    year: 2022
   },
   {
     slug: "loopple-builder-components",
@@ -127,7 +127,7 @@ export const projects: Project[] = [
     },
     cover: "https://raw.githubusercontent.com/Loopple/loopple-public-assets/main/tailwind/motion-landing-tailwind.png",
     description: "Collection of UI components integrated into Loopple Builder for low-code dashboards.",
-    year: 2022
+    year: 2023
   },
   {
     slug: "corporate-ui-dashboard",
@@ -160,7 +160,7 @@ export const projects: Project[] = [
     thumbnail: "https://s3.amazonaws.com/creativetim_bucket/products/648/original/argon-dashboard-2-tailwind.jpg?1659117428",
     cover: "/covers/argon.png",
     description: "Free Tailwind adaptation of Argon Dashboard, providing a modern UI kit for dashboards.",
-    year: 2021
+    year: 2022
   },
   {
     slug: "soft-ui-dashboard-tailwind",
@@ -266,19 +266,8 @@ export const projects: Project[] = [
     links: { repo: "https://github.com/badrianp/PheasantGame" },
     cover: "/covers/pheasant.png",
     description: "Networked game with client-server communication, built in C.",
-    year: 2022
+    year: 2021
   },
 
   // // 🔹 Personal
-  // {
-  //   slug: "personal-project-wip",
-  //   title: "Personal Project (WIP)",
-  //   type: "personal",
-  //   role: "Exploring new ideas in frontend & AI integration",
-  //   stack: ["Next.js", "Tailwind", "TypeScript"],
-  //   tags: ["wip", "experiment"],
-  //   links: {},
-  //   description: "Experimental playground for testing frontend concepts and AI integrations.",
-  //   year: 2025
-  // }
 ];
